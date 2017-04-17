@@ -44,10 +44,17 @@ class LinkParser(HTMLParser):
                 if key == 'href':
                     #print("self.baseURL: ", self.baseUrl, "in: ",value)
                     if (self.domain in value) and not any(exempt in value for exempt in exemptLinks):
-                        #print("Made it here")
+                        if("." not in value):
+                            #print("Made it here")
+                            self.internalLinks = self.internalLinks + [newUrl]
                         #if("revenue.alabama" in value) and not any(exempt in value for exempt in exemptLinks):
-                        if any(e in value for e in extensions):
+                        elif any(e in value for e in extensions):
                             self.documentLinks = self.documentLinks + [value]
+                            if not any(e in value for e in self.uniqueDocumentLinks):
+                                self.uniqueDocumentLinks = self.uniqueDocumentLinks + [value]
+                        elif ("safehomealabama" not in value ):
+                        #elif("." and "whitehouse" not in value):
+                            self.trueexternalLinks = self.trueexternalLinks + [value]
                         else:
                             # We are grabbing the new URL. We are also adding the
                             # base URL to it. For example:
@@ -60,6 +67,7 @@ class LinkParser(HTMLParser):
                             newUrl = parse.urljoin(self.baseUrl, value)
                             # And add it to our colection of internalLinks:
                             self.internalLinks = self.internalLinks + [newUrl]
+
                     elif any (exempt in value for exempt in exemptLinks): 
                         #do nothing
                         continue
@@ -72,7 +80,9 @@ class LinkParser(HTMLParser):
     def getLinks(self, url, domain):
         self.internalLinks = []
         self.externalLinks = []
+        self.trueexternalLinks = []
         self.documentLinks = []
+        self.uniqueDocumentLinks = []
         ignoreHeaders = ["application/pdf"]
         # Remember the base URL which will be important when creating
         # absolute URLs
@@ -93,26 +103,26 @@ class LinkParser(HTMLParser):
             htmlString = htmlBytes.decode("utf-8")
             #print("htmlString is: ",htmlString)
             self.feed(htmlString)
-            return htmlString, self.internalLinks, self.externalLinks, self.documentLinks
+            return htmlString, self.internalLinks, self.externalLinks, self.documentLinks, self.uniqueDocumentLinks, self.trueexternalLinks 
         elif response.getheader('Content-Type')=="text/html; charset=utf-8":
             htmlBytes = response.read()
             htmlString = htmlBytes.decode("UTF-8")
             self.feed(htmlString)
-            return htmlString, self.internalLinks, self.externalLinks, self.documentLinks
+            return htmlString, self.internalLinks, self.externalLinks, self.documentLinks, self.uniqueDocumentLinks, self.trueexternalLinks
         elif response.getheader('Content-Type')=="text/html;charset=UTF-8":
             htmlBytes = response.read()
             htmlString = htmlBytes.decode("UTF-8")
             self.feed(htmlString)
-            return htmlString, self.internalLinks, self.externalLinks, self.documentLinks
+            return htmlString, self.internalLinks, self.externalLinks, self.documentLinks, self.uniqueDocumentLinks, self.trueexternalLinks
         elif response.getheader('Content-Type')=="text/html; charset=UTF-8":
             htmlBytes = response.read()
             htmlString = htmlBytes.decode("UTF-8")
             self.feed(htmlString)
         elif response.getheader('Content-Type') in ignoreHeaders:
-            return "",[], [], []
+            return "",[], [], [], [], []
         else:
             print(response.getheader('Content-Type'))
-            return "",[], [], []
+            return "",[], [], [], [], []
     
 # And finally here is our spider. It takes in an URL, a word to find,
 # and the number of pages to search through before giving up
@@ -129,6 +139,8 @@ def spider(url, mode):
         internalLinks = []
         externalLinks = []
         documentLinks = []
+        uniqueDocumentLinks = []
+        trueexternalLinks = []
         iLinks = 0
         eLinks = 0
         dLinks = 0
@@ -148,11 +160,14 @@ def spider(url, mode):
                     numberVisited = numberVisited +1
                     #print(numberVisited, "Visiting:", url)
                     parser = LinkParser()
-                    data, tempI, tempE, tempD = parser.getLinks(url,domain)
+
+                    data, tempI, tempE, tempD, tempTD, tempTE = parser.getLinks(url,domain)
                     externalLinks = externalLinks + tempE
                     internalLinks = internalLinks + tempI
                     documentLinks = documentLinks + tempD
+                    uniqueDocumentLinks = uniqueDocumentLinks + tempTD
                     visitedLinks = visitedLinks + [url]
+                    trueexternalLinks = trueexternalLinks + tempTE
                     # Add the pages that we visited to the end of our collection
                     # of pages to visit:
                     pagesToVisit = pagesToVisit + tempI 
@@ -165,7 +180,10 @@ def spider(url, mode):
         print("The num of internallinks:", iLinks)
         print("The num of externallinks:", len(externalLinks))
         print("The num of visited Links are:",len(visitedLinks))
-        print("The num of document links are:", len(documentLinks))
+        print("The total count of document links are:", len(documentLinks))
+        print("The unique count of document links are:", len(uniqueDocumentLinks))
+        print("The true count of external links are:", len(trueexternalLinks))
+        printListOnPage(trueexternalLinks)
         writeListToFile(externalLinks,"externalLinks.csv")
         writeListToFile(documentLinks,"documentLinks.csv")
         writeListToFile(visitedLinks,"internalLinks.csv")
@@ -182,6 +200,7 @@ def spider(url, mode):
         iLinks = 0
         eLinks = 0
         dLinks = 0
+        tempTD = 0
         #Main Loop
         while pagesToVisit != []:
             url = pagesToVisit[0]

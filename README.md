@@ -10,7 +10,7 @@ Web Crawler for Statistics
 
 Run program with 'python3 WebRoller.py [URL] [Mode]'
 
-Example: 'python3 WebRoller.py http://www.safehomealabama.gov/SHAHome.aspx Alabama 1'
+Example: 'python3 WebRoller.py http://www.safehomealabama.gov/SHAHome.aspx 1'
 
 
 --URL--
